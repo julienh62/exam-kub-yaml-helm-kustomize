@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.fastApi.deploymentName }}
+  labels:
+    app: {{ .Values.fastApi.serviceName }}
+spec:
+  replicas: {{ .Values.fastApi.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.fastApi.serviceName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.fastApi.serviceName }}
+    spec:
+      containers:
+      - name: {{ .Values.fastApi.containerName }}
+        image: {{ .Values.fastApi.image }}  # Remplacez par le nom de votre image FastAPI
+        ports:
+        - containerPort: {{ .Values.fastApi.containerPort }}
+        env:
+            {{- range .Values.fastApi.environment }}
+            - name: "{{ .name }}"
+              value: "{{ .value }}"
+            {{- end }}
+

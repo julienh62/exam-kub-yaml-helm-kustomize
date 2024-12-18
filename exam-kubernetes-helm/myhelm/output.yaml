@@ -1,0 +1,310 @@
+---
+# Source: myhelm/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: myhelm
+  labels:
+    helm.sh/chart: myhelm-0.1.0
+    app.kubernetes.io/name: myhelm
+    app.kubernetes.io/instance: myhelm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: myhelm/templates/pvc-postgres.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# Source: myhelm/templates/service-fastapi.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-service  # Utilisation du service "fastapi"
+spec:
+  selector:
+    app: fastapi  # Sélection des pods basés sur l'étiquette
+  ports:
+    - protocol: TCP
+      port: 80  # Port exposé par le service
+      targetPort: 5000  # Port du conteneur
+  type: LoadBalancer  # Type du service, par exemple LoadBalancer
+---
+# Source: myhelm/templates/service-pgadmin.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgadmin-service 
+spec:
+  selector:
+    app: pgadmin
+  ports:
+    - protocol: TCP
+      port: 80  # Port exposé par le service
+      targetPort: 8081  # Port du conteneur
+  type: NodePort
+---
+# Source: myhelm/templates/service-postgres.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres
+---
+# Source: myhelm/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myhelm
+  labels:
+    helm.sh/chart: myhelm-0.1.0
+    app.kubernetes.io/name: myhelm
+    app.kubernetes.io/instance: myhelm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: myhelm
+    app.kubernetes.io/instance: myhelm
+---
+# Source: myhelm/templates/deployment-fastapi.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi
+  labels:
+    app: fastapi-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: fastapi-service
+  template:
+    metadata:
+      labels:
+        app: fastapi-service
+    spec:
+      containers:
+      - name: fastapi
+        image: julh62/exam-kubernetes_fastapi:latest  # Remplacez par le nom de votre image FastAPI
+        ports:
+        - containerPort: 5000
+        env:
+        - name: 
+          value:
+---
+# Source: myhelm/templates/deployment-pgadmin.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin
+  labels:
+    app: pgadmin
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pgadmin
+  template:
+    metadata:
+      labels:
+        app: pgadmin
+    spec:
+      containers:
+        - name: pgadmin
+          image: dpage/pgadmin4:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: "PGADMIN_DEFAULT_EMAIL"
+              value: "jhennebo@gmail.com"
+            - name: "PGADMIN_DEFAULT_PASSWORD"
+              value: "admin"
+---
+# Source: myhelm/templates/deployment-postgres.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:12.0-alpine
+        env:
+        - name: POSTGRES_USER
+          value: admin
+        - name: POSTGRES_PASSWORD
+          value: password
+        - name: POSTGRES_DB
+          value: storedb
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: trust
+        ports:
+        - containerPort: 
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-storage
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+# Source: myhelm/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myhelm
+  labels:
+    helm.sh/chart: myhelm-0.1.0
+    app.kubernetes.io/name: myhelm
+    app.kubernetes.io/instance: myhelm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: myhelm
+      app.kubernetes.io/instance: myhelm
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: myhelm-0.1.0
+        app.kubernetes.io/name: myhelm
+        app.kubernetes.io/instance: myhelm
+        app.kubernetes.io/version: "1.16.0"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      serviceAccountName: myhelm
+      securityContext:
+        {}
+      containers:
+        - name: myhelm
+          securityContext:
+            {}
+          image: "nginx:1.16.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {}
+---
+# Source: myhelm/templates/hpa-fastapi.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fastapi-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fastapi
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+# Source: myhelm/templates/ingress-fastapi.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: 
+  annotations:
+    cert-manager.io/cluster-issuer: ""
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    -   # Remplacez par votre domaine
+    secretName:    # Le nom du secret pour le certificat SSL
+  rules:
+  - host:   # Remplacez par votre domaine
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name:  # Le nom du service FastAPI
+            port:
+              number:   # Port exposé par le service FastAPI
+---
+# Source: myhelm/templates/clusterissuer-letsencrypt.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: jhennebo@gmail.com  # Remplacez par votre adresse email
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+# Source: myhelm/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "myhelm-test-connection"
+  labels:
+    helm.sh/chart: myhelm-0.1.0
+    app.kubernetes.io/name: myhelm
+    app.kubernetes.io/instance: myhelm
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['myhelm:80']
+  restartPolicy: Never

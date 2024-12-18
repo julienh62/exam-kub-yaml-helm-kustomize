@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.postgres.deploymentName }}
+spec:
+  replicas: {{ .Values.postgres.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.postgres.appLabel }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.postgres.appLabel }}
+    spec:
+      containers:
+      - name: {{ .Values.postgres.containerName }}
+        image: {{ .Values.postgres.image }}
+        env:
+        - name: POSTGRES_USER
+          value: {{ .Values.postgres.environment.POSTGRES_USER }}
+        - name: POSTGRES_PASSWORD
+          value: {{ .Values.postgres.environment.POSTGRES_PASSWORD }}
+        - name: POSTGRES_DB
+          value: {{ .Values.postgres.environment.POSTGRES_DB }}
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: {{ .Values.postgres.environment.POSTGRES_HOST_AUTH_METHOD }}
+        ports:
+        - containerPort: {{ .Values.postgres.ports.containerPort }}  # Accès direct à containerPort
+        volumeMounts:
+        - mountPath: {{ .Values.postgres.volume.mountPath }}
+          name: {{ .Values.postgres.volume.name }}
+      volumes:
+      - name: {{ .Values.postgres.volume.name }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.postgres.volume.persistentVolumeClaim.claimName }}

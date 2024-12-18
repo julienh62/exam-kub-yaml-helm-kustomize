@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.pgAdmin.deploymentName }}
+  labels:
+    app: {{ .Values.pgAdmin.deploymentName }}
+spec:
+  replicas: {{ .Values.pgAdmin.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.pgAdmin.deploymentName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.pgAdmin.deploymentName }}
+    spec:
+      containers:
+        - name: {{ .Values.pgAdmin.containerName }}
+          image: {{ .Values.pgAdmin.image }}
+          ports:
+            - containerPort: {{ .Values.pgAdmin.containerPort }}
+          env:
+            {{- range .Values.pgAdmin.environment }}
+            - name: "{{ .name }}"
+              value: "{{ .value }}"
+            {{- end }}

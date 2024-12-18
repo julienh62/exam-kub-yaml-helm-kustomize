@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.fastApi.ingressName }}
+  annotations:
+    cert-manager.io/cluster-issuer: "{{ .Values.fastApi.ingressCertManagerIssuer }}"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: {{ .Values.fastApi.ingressClassName }}
+  tls:
+  - hosts:
+    - {{ .Values.fastApi.ingressDomain }}  # Remplacez par votre domaine
+    secretName: {{ .Values.fastApi.ingressSecretName }}   # Le nom du secret pour le certificat SSL
+  rules:
+  - host: {{ .Values.fastApi.ingressDomain }}  # Remplacez par votre domaine
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.fastApi.ingressServiceName }} # Le nom du service FastAPI
+            port:
+              number: {{ .Values.fastApi.ingressServicePort }}  # Port exposé par le service FastAPI

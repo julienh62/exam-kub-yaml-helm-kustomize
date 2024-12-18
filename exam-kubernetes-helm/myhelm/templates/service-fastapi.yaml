@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.fastApiService.serviceName }}  # Utilisation du service "fastapi"
+spec:
+  selector:
+    app: {{ .Values.fastApiService.selector.app }}  # Sélection des pods basés sur l'étiquette
+  ports:
+    - protocol: TCP
+      port: {{ .Values.fastApiService.port }}  # Port exposé par le service
+      targetPort: {{ .Values.fastApiService.targetPort }}  # Port du conteneur
+  type: {{ .Values.fastApiService.type }}  # Type du service, par exemple LoadBalancer
